@@ -77,9 +77,11 @@ consinintr(void)
 
 	inlen = lgvgetconsbuf(inbuf, sizeof(inbuf));
 //	inotify("consin %d\n", inlen);
-		
+
+	/* just write it all out at once */
+	lgconswrite((char *)inbuf, inlen);
 	for(;inlen> 0;inlen--){
-		lgconswrite((char *)p, 1);
+//		lgconswrite((char *)p, 1);
 		uartrecv(consuart, *p++);	
 	}
 
