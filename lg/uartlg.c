@@ -23,6 +23,8 @@ extern PhysUart  lgphysuart;
 
 extern int console;
 
+int inotify(char *fmt, ...);
+
 void
 lgconswrite(char *str, int len)
 {
@@ -70,11 +72,11 @@ consinintr(void)
 	int lgvgetconsbuf(unsigned char *v, int len);
 	int lgvaddconsbuf(unsigned char *v, int len);
 	unsigned char *p = inbuf;
-//	iprint("CONSININTR\n");
-//	iprint("consin %d\n", inlen);
+//	inotify("CONSININTR\n");
+//	inotify("consin %d\n", inlen);
 
 	inlen = lgvgetconsbuf(inbuf, sizeof(inbuf));
-//	iprint("consin %d\n", inlen);
+//	inotify("consin %d\n", inlen);
 		
 	for(;inlen> 0;inlen--){
 		lgconswrite((char *)p, 1);
@@ -83,8 +85,8 @@ consinintr(void)
 
 	inlen =  lgvaddconsbuf(inbuf, sizeof(inbuf));
 
-//	iprint("consin %d\n", inlen);
-//iprint("EXIT CONSININTR");
+//	inotify("consin %d\n", inlen);
+//inotify("EXIT CONSININTR");
 		
 }
 void
@@ -136,7 +138,7 @@ lgnopv(Uart *, int){
 
 static int
 lgnogetcyet(Uart *){
-iprint("NO GETC YET\n");
+inotify("NO GETC YET\n");
 return 0;
 }
 
@@ -175,12 +177,12 @@ lgconsole(void)
 	consuart = uart;
 	uart->console = 1;
 
-	iprint("findlgv is %d\n", findlgv("cons"));
+	inotify("findlgv is %d\n", findlgv("cons"));
 /*if only. 
 lgconswrite("lgpnp\n", 7);
-	iprint("lgpnp, open cons\n");
+	inotify("lgpnp, open cons\n");
 	c = namec("#Z/cons", Aopen, ORDWR, 0);
-	iprint("lgpnp, c %p\n", c);
+	inotify("lgpnp, c %p\n", c);
 	if (! c)
 		return;
 	console = c;

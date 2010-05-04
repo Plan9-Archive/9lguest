@@ -109,7 +109,7 @@ inotify(char *fmt, ...)
 	va_start(arg, fmt);
 	n = vseprint(buf, buf+sizeof(buf), fmt, arg) - buf;
 	va_end(arg);
-	hcall(LHCALL_NOTIFY, paddr(buf), 0, 0, 0);
+//	hcall(LHCALL_NOTIFY, paddr(buf), 0, 0, 0);
 	splx(s);
 
 	return n;
@@ -134,7 +134,7 @@ int vring_add_buf(struct vqring *vqring,
 		panic("vring_add_buf: out %d + in %d == 0", out, in);
 
 	if (vqring->num_free < out + in) {
-		iprint("Can't add buf len %ud - avail = %ud\n",
+		inotify("Can't add buf len %ud - avail = %ud\n",
 			 out + in, vqring->num_free);
 		/* We notify *even if* VRING_USED_F_NO_NOTIFY is set here. */
 		//vq->notify(&vq->vq);
@@ -152,7 +152,7 @@ int vring_add_buf(struct vqring *vqring,
 		prev = i;
 		index++;
 	} 
-//iprint("after loop i is %d\n", i);
+//inotify("after loop i is %d\n", i);
 
 	for (; in; i = vqring->vring.desc[i].next, in--) {
 		vqring->vring.desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
@@ -175,8 +175,7 @@ int vring_add_buf(struct vqring *vqring,
 	 * do sync).  FIXME: avoid modulus here? */
 	avail = (vqring->vring.avail->idx + vqring->num_added++) % vqring->vring.num;
 	vqring->vring.avail->ring[avail] = head;
-//{int i = console; console = -1; 
-//{	iprint("Added buffer head %ud to %p\n", head, vq); console = i;}
+	inotify("Added buffer head %ud to %p\n", head, vqring);
 	return 0;
 }
 
@@ -191,7 +190,7 @@ void vring_kick(struct vqring *vqring)
 
 	/* Need to update avail index before checking if we should notify */
 	coherence();
-//iprint("vqring: num %d irq %d pages %p ppages %p\n", vqring->num, vqring->irq, vqring->pages, (void *)vqring->ppages);
+//inotify("vqring: num %d irq %d pages %p ppages %p\n", vqring->num, vqring->irq, vqring->pages, (void *)vqring->ppages);
 
 	if (!(vqring->vring.used->flags & VRING_USED_F_NO_NOTIFY))
 		/* Prod other side to tell it about changes. */
@@ -230,7 +229,7 @@ void *vring_get_buf(struct vqring *vqring, unsigned int *len)
 	unsigned int i;
 
 	if (!more_used(vqring)) {
-//		iprint("No more buffers in queue\n");
+//		inotify("No more buffers in queue\n");
 		return nil;
 	}
 
@@ -404,16 +403,16 @@ lgvconsout(char *a, int len)
 {
 	unsigned int getbuflen;
 
-//	inotify("We would add buf %p to vqring %p\n", a, &lgv[console].ring[1]);
+	inotify("We would add buf %p to vqring %p\n", a, &lgv[console].ring[1]);
+	inotify("console is %d; ring is 1\n", console);
 	inotify(a);
-return len;
+	if (console < 0)
+		return;
 	vring_add_buf(&lgv[console].ring[1], &a, &len, 1, 0, a);
 
-//	iprint("ret from add buf is %d\n", ret);
 	vring_kick(&lgv[console].ring[1]);
-//	iprint("back from kick\n");
+	inotify("back from kick\n");
 	vring_get_buf(&lgv[console].ring[1], &getbuflen);
-//	hcall(LHCALL_NOTIFY, paddr(str), 0, 0);
 	return getbuflen;
 }
 
@@ -429,9 +428,9 @@ int
 lgvaddxmitbuf(int dev, int ring, void *v[], int len[], int nbuf, void *tag)
 {
 //	int i;
-//	iprint("smit dev %d ring %d nbuf %d: ", dev, ring, nbuf);
-//	for(i = 0; i < nbuf; i++) iprint("%p/%d", v[i], len[i]);
-//	iprint("\n");
+//	inotify("smit dev %d ring %d nbuf %d: ", dev, ring, nbuf);
+//	for(i = 0; i < nbuf; i++) inotify("%p/%d", v[i], len[i]);
+//	inotify("\n");
 	vring_add_buf(&lgv[dev].ring[ring], v, len, nbuf, 0, tag);
 	vring_kick(&lgv[dev].ring[ring]);
 	return 0;
@@ -441,9 +440,9 @@ int
 lgvaddbuf(int dev, int ring, void *v[], int len[], int out, int in, void *tag)
 {
 //	int i;
-//	iprint("smit dev %d ring %d out %d in  %d: ", dev, ring, out, in);
-//	for(i = 0; i < out + in; i++) iprint("%p/%d,", v[i], len[i]);
-//	iprint("\n");
+//	inotify("smit dev %d ring %d out %d in  %d: ", dev, ring, out, in);
+//	for(i = 0; i < out + in; i++) inotify("%p/%d,", v[i], len[i]);
+//	inotify("\n");
 	vring_add_buf(&lgv[dev].ring[ring], v, len, out, in, tag);
 	vring_kick(&lgv[dev].ring[ring]);
 	return 0;
@@ -470,13 +469,6 @@ int
 lgvgetconsbuf(unsigned char *, int)
 {
 	int plen = 0;
-/*
-	void *vring_get_buf(struct vqring *vqring, unsigned int *len);
-	int plen = 0;
-	vring_get_buf(&lgv[console].ring[0], (unsigned int *)&plen);
-//iprint("lgvgetconsbuf\n");
-	return plen;
-*/
 	lgvgetbuf(console, 0, &plen);
 	return plen;
 }
@@ -485,14 +477,14 @@ lgvgetconsbuf(unsigned char *, int)
 void
 lgvconsin(void *a, int len, char *name, void *f) //(void *)f(void))
 {
-	iprint("lgv consin a %p len %d f %p\n", a, len, f);
+	inotify("lgv consin a %p len %d f %p\n", a, len, f);
 	if (f) {
 		intrenable(lgv[console].ring[0].irq + 32, f, a, BUSUNKNOWN, name);
 	}
 	
 	vring_add_buf(&lgv[console].ring[0], &a, &len, 0, 1, a);
 
-//	iprint("ret from add buf is %d\n", ret);
+//	inotify("ret from add buf is %d\n", ret);
 	vring_kick(&lgv[console].ring[0]);
 }
 
@@ -503,7 +495,7 @@ findlgv(char *name)
 	int i;
 	for(i = 0; i < ndev; i++) {
 		if (! strcmp(name, lgvdir[i].name)){
-			iprint("findlgv %s, @%d\n", name, i);
+			inotify("findlgv %s, @%d\n", name, i);
 			ret = i;	
 			break;
 		}			
@@ -620,7 +612,7 @@ configring(struct vqring *ring, unsigned char *v, char *)
 
 	vring_init(&ring->vring, ring->num, ring->pages,BY2PG);
 
-	iprint("ring %p: num %d irq %d pages %p\n", ring, ring->num, 
+	inotify("ring %p: num %d irq %d pages %p\n", ring, ring->num, 
 		ring->irq, ring->pages);
 
 	ring->q = qopen(4096, 0, 0, 0);
@@ -637,7 +629,7 @@ configldev(struct lguest_device_desc *l, struct lguest_device *lg, char *name)
 	unsigned char *v;
 	int j;
 	unsigned char *cp;
-	iprint("Dev %d, %d, %d, %d, %d, ...\n", l->type, l->num_vq, l->feature_len, 
+	inotify("Dev %d, %d, %d, %d, %d, ...\n", l->type, l->num_vq, l->feature_len, 
 	l->config_len, l->status);
 	for(j = 0, v = l->config; j < l->num_vq; j++) {
 		configring(&lg->ring[j], &v[j*8], name);
@@ -679,12 +671,12 @@ lgvreset(void)
 	struct lguest_device_desc *l = lgd, *nextl;
 	int i, setconsole = -1;
 
-	iprint("lgv reset\n");
+	inotify("lgv reset\n");
 	dumphex("lgd", (uchar *)lgd, 256);
 	/* let's dump some devices */
 	{ extern struct lguest_device_desc *lgd;struct lguest_device_desc *l = lgd; unsigned char *cp;int i;
 		for(i = 0; i < 10 && l->type; i++){
-		iprint("Dev %d, %d, %d, %d, %d, ...\n", l->type, l->num_vq, l->feature_len, 
+		inotify("Dev %d, %d, %d, %d, %d, ...\n", l->type, l->num_vq, l->feature_len, 
 		l->config_len, l->status);
 		cp = (unsigned char *)l;
 		cp += 5 + l->feature_len*2 + l->config_len + l->num_vq*8;
@@ -698,14 +690,14 @@ lgvreset(void)
 		lgdir(l, i, &lgvdir[i]);
 		if (l->type == QTCONS) {
 			char *a = "============================== hi there ========================\n";
-			iprint("Found a console! try output!\n");
+			inotify("Found a console! try output!\n");
 			setconsole = i;
 			lgvconsout(a, strlen(a));
 		}
 
 	}
 	
-	iprint("lgv reset done\n");
+	inotify("lgv reset done\n");
 	console = setconsole;
 }
 
