@@ -1,0 +1,22 @@
+This is the Plan 9 port of lguest. The very first version in the repo is the 
+working lguest for 2.6.25. Interface churn being a fact of life in Linux, 
+this port does not work on later Linuxes. I will have to tag each working 
+version with the kernel it works on I guess. 
+
+To build, 
+. SETUP
+cd /sys/src/9/lg
+mk
+
+You'll get a 9lguestcpu.elf suitable for booting with Linux. 
+
+On Linux, 
+
+modprobe lg syscall_vector=64
+lguest <some memory size> 9lguestcpu.elf <some options>
+
+For a venti disk, you can do, e.g.:
+lguest  512 /tmp/9lguestcpu.elf --block=/u3/thx9.img --tunnet=bridge:lg0 'venti=#S/sd00/arenas;bootdisk=local!#S/sd00/fossil;bootargs=local!#S/sd00/fossil'
+
+thx9.img in this case I think came from qemu.
+

@@ -12,6 +12,8 @@
 #define VRING_DESC_F_NEXT	1
 /* This marks a buffer as write-only (otherwise read-only). */
 #define VRING_DESC_F_WRITE	2
+/* This means the buffer contains a list of buffer descriptors. */
+#define VRING_DESC_F_INDIRECT	4
 
 /* The Host uses this in used->flags to advise the Guest: don't kick me when
  * you add a buffer.  It's unreliable, so it's simply an optimization.  Guest
@@ -21,6 +23,33 @@
  * when you consume a buffer.  It's unreliable, so it's simply an
  * optimization.  */
 #define VRING_AVAIL_F_NO_INTERRUPT	1
+
+/* We support indirect buffer descriptors (we do right?) */
+#define VIRTIO_RING_F_INDIRECT_DESC	28
+
+/* Virtio devices use a standardized configuration space to define their
+ * features and pass configuration information, but each implementation can
+ * store and access that space differently. */
+
+/* Status byte for guest to report progress, and synchronize features. */
+/* We have seen device and processed generic fields (VIRTIO_CONFIG_F_VIRTIO) */
+#define VIRTIO_CONFIG_S_ACKNOWLEDGE	1
+/* We have found a driver for the device. */
+#define VIRTIO_CONFIG_S_DRIVER		2
+/* Driver has used its parts of the config, and is happy */
+#define VIRTIO_CONFIG_S_DRIVER_OK	4
+/* We've given up on this device. */
+#define VIRTIO_CONFIG_S_FAILED		0x80
+
+/* Some virtio feature bits (currently bits 28 through 31) are reserved for the
+ * transport being used (eg. virtio_ring), the rest are per-device feature
+ * bits. */
+#define VIRTIO_TRANSPORT_F_START	28
+#define VIRTIO_TRANSPORT_F_END		32
+
+/* Do we get callbacks when the ring is completely used, even if we've
+ * suppressed them? */
+#define VIRTIO_F_NOTIFY_ON_EMPTY	24
 
 typedef uvlong u64;
 

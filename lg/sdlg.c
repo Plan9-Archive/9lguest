@@ -207,7 +207,7 @@ lgrio(SDreq*)
 }
 
 static long
-lgbio(SDunit* unit, int, int write, void* data, long nb, long bno)
+lgbio(SDunit* unit, int, int write, void* data, long nb, uvlong bno)
 {
 	int lgvaddbuf(int dev, int ring, void *v[], int len[], int out, int in, void *tag);
 	void *v[3];
@@ -268,14 +268,14 @@ SDifc sdlgifc = {
 	0,			/* enable */
 	0,			/* disable */
 
-	lgverify,			/* verify */
-	lgonline,			/* online */
-	lgrio,				/* rio */
+	lgverify,	/* verify */
+	lgonline,	/* online */
+	lgrio,		/* rio */
 	0,			/* rctl */
 	0,			/* wctl */
 
-	lgbio,				/* bio */
+	lgbio,		/* bio */
 	0,			/* probe */
-	lgclear,			/* clear */
+	lgclear,	/* clear */
 	0,			/* stat */
 };

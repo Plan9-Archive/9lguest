@@ -33,20 +33,20 @@ misc
 
 
 ip
-	il
 	tcp
 	udp
 	ipifc
 	icmp
 	icmp6
 	gre
+	ipmux
+	esp
 
 port
 	int cpuserver = 0;
 
 boot boot #S/sd00/data
 	tcp
-	il
 	local
 
 bootdir

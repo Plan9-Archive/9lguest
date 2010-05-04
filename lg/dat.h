@@ -17,6 +17,7 @@ typedef struct Proc	Proc;
 typedef struct Segdesc	Segdesc;
 typedef struct Ureg	Ureg;
 typedef struct Vctl	Vctl;
+typedef vlong Tval;
 
 #pragma incomplete Pcidev
 #pragma incomplete Ureg

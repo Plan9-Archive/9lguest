@@ -29,8 +29,7 @@ lgconswrite(char *str, int len)
 	void lgvconsout(char *a, int len);
 
 	if (console < 0)
-		hcall(LHCALL_NOTIFY, paddr(str), 0, 0);
-
+		hcall(LHCALL_NOTIFY, paddr(str), 0, 0, 0);
 	if (console >-1){
 		lgvconsout(str, len);
 	}
@@ -40,7 +39,7 @@ lgconswrite(char *str, int len)
 static char dmabuf[1024];
 
 #ifdef NOT
-/* TODO: find the write place to put the dmabuf pointer!*/
+/* TODO: find the right place to put the dmabuf pointer!*/
 static void
 lgintr(Ureg *, void *arg){
 	int i;

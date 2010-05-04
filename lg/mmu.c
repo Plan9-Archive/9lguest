@@ -78,11 +78,11 @@ mmuinit0(void)
 	memset(pcr3, 0, CPU0GDT-CPU0PDB);
 	/* do the PMDs */
 	pcr3[KZERO>>22] = paddr((void *)CPU0PTE) |  PTEWRITE|PTEVALID;
-//	iprint("Set %p to %#x\n", &pcr3[KZERO>>22], paddr((void *)CPU0PTE) |  PTEWRITE|PTEVALID);
+	//iprint("Set %p to %#x\n", &pcr3[KZERO>>22], paddr((void *)CPU0PTE) |  PTEWRITE|PTEVALID);
 	pte = (u32 *) CPU0PTE;
 
 	for(i = 0; i < 1024; i++){
-//		iprint("Set %p to %#x\n", &pte[i], i*4096 |  PTEWRITE|PTEVALID);
+		//iprint("Set %p to %#x\n", &pte[i], i*4096 |  PTEWRITE|PTEVALID);
 		pte[i] = i*4096 |  PTEWRITE|PTEVALID;
 	}
 
@@ -107,7 +107,7 @@ fixmach(){
 	pmd = (u32 *)cr3[PTX(CPU0MACH)];
 	pte = (u32 *)pmd[PTX(CPU0MACH)];
 	*pte = CPU0MACH|PTEVALID|PTEWRITE;
-	hcall(LHCALL_SET_PTE,pcr3, MACHADDR|PTEVALID|PTEWRITE, CPU0MACH);
+	hcall(LHCALL_SET_PTE,pcr3, MACHADDR|PTEVALID|PTEWRITE, CPU0MACH, 0);
 }
 
 void
@@ -157,15 +157,16 @@ mmuinit(void)
 		p = mmuwalk(m->pdb, x, 2, 0);
 		if(p == nil)
 			panic("mmuinit");
+		//iprint("Set %p ... \n", p);
 		*p &= ~PTEWRITE;
 		/* make it writeable for probes */
 		*p |= PTEWRITE;
 	}
 	/* NO HARM, BUT NO GOOD 
 	memmove(MACHP(0), m, ((ulong)&m->stack)  - (ulong) m);*/
-//	iprint("First  taskswitch...");
+	iprint("First  taskswitch...");
 	taskswitch(PADDR(m->pdb),  (ulong)m + BY2PG - 4);
-//	iprint("  ltr...");
+	iprint("  ltr...");
 	ltr(TSSSEL);
 }
 
@@ -324,11 +325,11 @@ taskswitch(ulong pdb, ulong stack)
 	tss->esp1 = stack;
 	tss->ss2 = KDSEL;
 	tss->esp2 = stack;
-//iprint("taskswitch before load esp0\n");
+	//iprint("taskswitch before load esp0 stack %#ulx\n", stack);
 	lguest_load_esp0(stack);
-//iprint("ts after load esp0 ... now putcr3 %p\n", pdb);
+	//iprint("ts after load esp0 ... now putcr3 %p\n", pdb);
 	putcr3(pdb);
-//iprint("ts returens\n");
+	//iprint("ts returens\n");
 }
 
 void
@@ -757,7 +758,7 @@ pdbmap(ulong *pdb, ulong pa, ulong va, int size)
 		pse = 1;
 	else
 		pse = 0;
-//iprint("pdbmap: pa %p, va %p, size %d, pse %d\n", (void *)pa, (void *)va, size, pse);
+iprint("pdbmap: pa %p, va %p, size %d, pse %d\n", (void *)pa, (void *)va, size, pse);
 
 	for(off=0; off<size; off+=pgsz){
 		table = &pdb[PDX(va+off)];
@@ -1126,4 +1127,11 @@ checkfault(ulong, ulong)
 {
 }
 
-
+ulong
+cankaddr(ulong pa)
+{
+	if(pa >= -KZERO)
+		return 0;
+		
+	return -KZERO - pa;
+}

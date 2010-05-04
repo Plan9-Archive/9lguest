@@ -38,7 +38,7 @@ set_lguest_trap(int irq, void *a)
 
 	lo = (KESEG<<16) | (((unsigned long)a) & 0xffff);
 	hi = (((unsigned long)a) & 0xffff0000) | flags;
-	hcall(LHCALL_LOAD_IDT_ENTRY, irq, lo, hi);
+	hcall(LHCALL_LOAD_IDT_ENTRY, irq, lo, hi, 0);
 }
 void
 intrenable(int irq, void (*f)(Ureg*, void*), void* a, int tbdf, char *name)
@@ -350,7 +350,7 @@ trap(Ureg* ureg)
 	clockintr = 0;
 
 	vno = ureg->trap;
-//iprint("Trap, vno %d\n", vno);
+//iprint("Trap, vno %d %p\n", vno, vctl[vno]);
 	if(ctl = vctl[vno]){
 		if(ctl->isintr){
 			m->intr++;

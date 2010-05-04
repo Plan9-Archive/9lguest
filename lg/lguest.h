@@ -116,23 +116,23 @@ struct lguest_pages
 	struct lguest_ro_state state;
 };
 
-#define LHCALL_FLUSH_ASYNC	0
-#define LHCALL_LGUEST_INIT	1
-#define LHCALL_CRASH		2
-#define LHCALL_LOAD_GDT		3
-#define LHCALL_NEW_PGTABLE	4
-#define LHCALL_FLUSH_TLB	5
-#define LHCALL_LOAD_IDT_ENTRY	6
-#define LHCALL_SET_STACK	7
-#define LHCALL_TS		8
-#define LHCALL_SET_CLOCKEVENT	9
-#define LHCALL_HALT		10
-#define LHCALL_BIND_DMA		12
-#define LHCALL_SET_PTE		14
-#define LHCALL_SET_PMD		15
-#define LHCALL_LOAD_TLS		16
-
-#define LHCALL_NOTIFY		17
+#define LHCALL_FLUSH_ASYNC      0        
+#define LHCALL_LGUEST_INIT      1        
+#define LHCALL_SHUTDOWN         2
+#define LHCALL_NEW_PGTABLE      4
+#define LHCALL_FLUSH_TLB        5
+#define LHCALL_LOAD_IDT_ENTRY   6
+#define LHCALL_SET_STACK        7
+#define LHCALL_TS               8                                      
+#define LHCALL_SET_CLOCKEVENT   9                                           
+#define LHCALL_HALT             10                                          
+#define LHCALL_SET_PMD          13     
+#define LHCALL_SET_PTE          14                                          
+#define LHCALL_SET_PGD          15                                            
+#define LHCALL_LOAD_TLS         16                                            
+#define LHCALL_NOTIFY           17                                            
+#define LHCALL_LOAD_GDT_ENTRY   18                                            
+#define LHCALL_SEND_INTERRUPTS  19  
 
 /* Argument number 3 to LHCALL_LGUEST_SHUTDOWN */
 #define LGUEST_SHUTDOWN_POWEROFF	1
@@ -146,11 +146,11 @@ struct lguest_pages
 
 unsigned long
 hcall(unsigned long call,
-      unsigned long arg1, unsigned long arg2, unsigned long arg3);
+      unsigned long arg1, unsigned long arg2, unsigned long arg3, unsigned long arg4);
 /*:*/
 
 void async_hcall(unsigned long call,
-		 unsigned long arg1, unsigned long arg2, unsigned long arg3);
+		 unsigned long arg1, unsigned long arg2, unsigned long arg3, unsigned long arg4);
 
 /* Can't use our min() macro here: needs to be a constant */
 #define LGUEST_IRQS (NR_IRQS < 32 ? NR_IRQS: 32)
@@ -158,7 +158,7 @@ void async_hcall(unsigned long call,
 #define LHCALL_RING_SIZE 64
 struct hcall_ring
 {
-	u32 eax, edx, ebx, ecx;
+	u32 eax, edx, ebx, ecx, esi; /* EVH: added esi? */
 };
 
 struct timespec {
@@ -173,23 +173,36 @@ struct lguest_data
 {
 	/* 512 == enabled (same as eflags in normal hardware).  The Guest
 	 * changes interrupts so often that a hypercall is too slow. */
+	 
 	unsigned int irq_enabled;
+	
 	/* Fine-grained interrupt disabling by the Guest */
+	
 	u32 blocked_interrupts[LGUEST_IRQS/32];
 
 	/* The Host writes the virtual address of the last page fault here,
 	 * which saves the Guest a hypercall.  CR2 is the native register where
 	 * this address would normally be found. */
+	 
 	unsigned long cr2;
 
 	/* Wallclock time set by the Host. */
+	
 	struct timespec time;
+	
+	/*
+	 * Interrupt pending set by the Host.  The Guest should do a hypercall
+	 * if it re-enables interrupts and sees this set (to X86_EFLAGS_IF).
+	 */
+	 
+	int irq_pending;	
 
 	/* Async hypercall ring.  Instead of directly making hypercalls, we can
 	 * place them in here for processing the next time the Host wants.
 	 * This batching can be quite efficient. */
 
 	/* 0xFF == done (set by Host), 0 == pending (set by Guest). */
+	
 	u8 hcall_status[LHCALL_RING_SIZE];
 	/* The actual registers for the hypercalls. */
 	struct hcall_ring hcalls[LHCALL_RING_SIZE];

@@ -1101,8 +1101,14 @@ fastticks(uvlong *hz)
  *  set next timer interrupt
  */
 void
-timerset(uvlong x)
+timerset(vlong x)
 {
 	if(doi8253set)
 		(*arch->timerset)(x);
+}
+
+ulong
+µs(void)
+{
+	return fastticks2us((*arch->fastclock)(nil));
 }

@@ -95,6 +95,26 @@ struct lguest_device lgv[Qmax];
 static int ndev = FirstDev;
 int console = -1;
 
+/* just like iprint but it will ALWAYS go straight to a notify -- not whatever
+ * we happen to think the console is.
+ */
+int
+inotify(char *fmt, ...)
+{
+	int n, s;
+	va_list arg;
+	static char buf[PRINTSIZE];
+
+	s = splhi();
+	va_start(arg, fmt);
+	n = vseprint(buf, buf+sizeof(buf), fmt, arg) - buf;
+	va_end(arg);
+	hcall(LHCALL_NOTIFY, paddr(buf), 0, 0, 0);
+	splx(s);
+
+	return n;
+}
+
 /* from the linux stuff. addbuf and getbuf */
 /* clean this up as it it GPL! */
 int vring_add_buf(struct vqring *vqring, 
@@ -105,6 +125,7 @@ int vring_add_buf(struct vqring *vqring,
 {
 	unsigned int i, avail, head, index = 0;
 	int prev = 0;
+	inotify("vring_add_buf: vqring %p, v %p, len %d, out %d, in %d, data %p\n", vqring, v, *len, out, in, data);
 	if (data == nil)
 		panic("vring_add_buf: data is nil");
 	if (out + in > vqring->vring.num)
@@ -174,7 +195,7 @@ void vring_kick(struct vqring *vqring)
 
 	if (!(vqring->vring.used->flags & VRING_USED_F_NO_NOTIFY))
 		/* Prod other side to tell it about changes. */
-		hcall(LHCALL_NOTIFY, vqring->ppages, 0, 0);
+		hcall(LHCALL_NOTIFY, vqring->ppages, 0, 0, 0);
 
 }
 
@@ -383,7 +404,9 @@ lgvconsout(char *a, int len)
 {
 	unsigned int getbuflen;
 
-//{int i = console;console=-1;	iprint("lgv consout a %p len %d\n", a, len);console=i;}	
+//	inotify("We would add buf %p to vqring %p\n", a, &lgv[console].ring[1]);
+	inotify(a);
+return len;
 	vring_add_buf(&lgv[console].ring[1], &a, &len, 1, 0, a);
 
 //	iprint("ret from add buf is %d\n", ret);
@@ -511,7 +534,7 @@ lgvintr(Ureg *, void *)
 {
 //	hcall(LHCALL_CRASH, paddr("data is not aligned"), 0, 0);
 //	panic("lgvintr");
-	hcall(LHCALL_NOTIFY, paddr("lgvintr\n"), 0, 0);
+	hcall(LHCALL_NOTIFY, paddr("lgvintr\n"), 0, 0, 0);
 }
 
 
@@ -569,6 +592,7 @@ static long
 lgvwrite(Chan* , void*, long , vlong)
 {
 	error(Eperm);
+	return -1;
 }
 
 void
@@ -589,6 +613,7 @@ configring(struct vqring *ring, unsigned char *v, char *)
 	memmove(&ring->irq, &v[2], 2);
 	memmove(&pfn, &v[4], 4);
 
+	inotify("configring: v %p num %d irq %#ux pfn %#ulx\n", v, ring->num, ring->irq, pfn);
 	ring->ppages = pfn << PGSHIFT;
 	/* 16 bytes per entry. So it is ring->num * BY2PG / 16 */
 	ring->pages = vmap(pfn<<PGSHIFT, ring->num*BY2PG/16);
@@ -652,7 +677,7 @@ lgvreset(void)
 	void dumphex(char *name, unsigned char *s, int len);
 	extern struct lguest_device_desc *lgd;
 	struct lguest_device_desc *l = lgd, *nextl;
-	int i;
+	int i, setconsole = -1;
 
 	iprint("lgv reset\n");
 	dumphex("lgd", (uchar *)lgd, 256);
@@ -674,15 +699,14 @@ lgvreset(void)
 		if (l->type == QTCONS) {
 			char *a = "============================== hi there ========================\n";
 			iprint("Found a console! try output!\n");
-			console = i;
-			lgvconsout(a, strlen(a));
-			lgvconsout(a, strlen(a));
+			setconsole = i;
 			lgvconsout(a, strlen(a));
 		}
 
 	}
 	
 	iprint("lgv reset done\n");
+	console = setconsole;
 }
 
 Dev lgvdevtab = {

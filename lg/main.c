@@ -116,12 +116,12 @@ main(ulong physboot)
 	extern void lgconswrite(char *n, int len);
 	int i;
 	void *boot;
-	hcall(LHCALL_NOTIFY, paddr("hello squidboy"), 0, 0);
+	hcall(LHCALL_NOTIFY, paddr("hello squidboy"), 0, 0, 0);
 	for(i = 0; i < LHCALL_RING_SIZE; i++)
 		lguest_data.hcall_status[i] = 0xff;
-	if (x != 123456)
-		hcall(LHCALL_CRASH, paddr("data is not aligned"), 0, 0);
-//		hcall(LHCALL_CRASH, paddr("time to die"), 0, 0);
+//	if (x != 123456)
+//		hcall(LHCALL_CRASH, paddr("data is not aligned"), 0, 0, 0);
+//		hcall(LHCALL_CRASH, paddr("time to die"), 0, 0, 0);
 	lgconswrite("mach0init\n", 10);
 	mach0init();
 	lgconswrite("options\n", 8);
@@ -133,7 +133,7 @@ main(ulong physboot)
 	lgconswrite("p9\n", 3);
 	print("\nPlan 9\n");
 //	panic("test panic");
-//	hcall(LHCALL_CRASH, paddr("DIE NOW"), 0, 0);
+//	hcall(LHCALL_CRASH, paddr("DIE NOW"), 0, 0, 0);
 
 	trapinit0();
 	iprint("trapinit0() ...");
@@ -164,6 +164,7 @@ main(ulong physboot)
 	}else
 		links();
 	conf.monitor = 1;
+	{extern int iprintscreenputs; iprintscreenputs = 0;}
 	chandevreset();iprint("	chandevreset();\n");
 	/* the serialoq is totally pointless and it causes a panic I don't understand */
 	/* the whole thing needs rework. */

@@ -100,7 +100,7 @@ TEXT _startPADDR(SB), $0
 /* clone the low ptes to high virtual addresses */
 	/* where are they? Only lguest knows.  */
 	MOVL $LHCALL_LGUEST_INIT, AX
-	MOVL $lguest_data - KZERO(SB), DX
+	MOVL $lguest_data - KZERO(SB), BX
 	INT $LGUEST_TRAP_ENTRY
 
 	/* test: can we exit? */
@@ -997,16 +997,17 @@ TEXT forkret(SB), $0
 	IRETL
 
 /* LGUEST stuff. */
-/* lguest hypercall. Always has call # and 3 parameters */
+/* lguest hypercall. Always has call # and 4 parameters */
 /* these saves of regs are not needed ... */
 TEXT hcall(SB), $0
 /*	PUSHL	AX
 	PUSHL	BX
 	PUSHL	CX
 	PUSHL	DX*/
-	MOVL	ARG3+12(FP), CX
-	MOVL	ARG2+8(FP), BX
-	MOVL	ARG1+4(FP), DX
+	MOVL	ARG4+16(FP), SI
+	MOVL	ARG3+12(FP), DX
+	MOVL	ARG2+8(FP), CX
+	MOVL	ARG1+4(FP), BX
 	MOVL	C+0(FP), AX
 	INT		$0x1F
 /*	POPL		DX

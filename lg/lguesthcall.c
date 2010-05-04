@@ -84,18 +84,19 @@ static void lguest_lazy_mode(int mode)
 {
 	lazy_mode = mode;
 	if (mode == PARAVIRT_LAZY_NONE)
-		hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
+		hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0, 0);
 }
 
 static void lazy_hcall(unsigned long call,
 		       unsigned long arg1,
 		       unsigned long arg2,
-		       unsigned long arg3)
+		       unsigned long arg3,
+			unsigned long arg4)
 {
 	if (lazy_mode == PARAVIRT_LAZY_NONE)
-		hcall(call, arg1, arg2, arg3);
+		hcall(call, arg1, arg2, arg3, arg4);
 	else
-		async_hcall(call, arg1, arg2, arg3);
+		async_hcall(call, arg1, arg2, arg3, arg4);
 }
 
 /* async_hcall() is pretty simple: I'm quite proud of it really.  We have a
@@ -109,7 +110,7 @@ static void lazy_hcall(unsigned long call,
  * effect of causing the Host to run all the stored calls in the ring buffer
  * which empties it for next time! */
 void async_hcall(unsigned long call,
-		 unsigned long arg1, unsigned long arg2, unsigned long arg3)
+		 unsigned long arg1, unsigned long arg2, unsigned long arg3, unsigned long arg4)
 {
 	/* Note: This code assumes we're uniprocessor. */
 	static unsigned int next_call;
@@ -121,12 +122,13 @@ void async_hcall(unsigned long call,
 	s = splhi();
 	if (lguest_data.hcall_status[next_call] != 0xFF) {
 		/* Table full, so do normal hcall which will flush table. */
-		hcall(call, arg1, arg2, arg3);
+		hcall(call, arg1, arg2, arg3, arg4);
 	} else {
 		lguest_data.hcalls[next_call].eax = call;
-		lguest_data.hcalls[next_call].edx = arg1;
-		lguest_data.hcalls[next_call].ebx = arg2;
-		lguest_data.hcalls[next_call].ecx = arg3;
+		lguest_data.hcalls[next_call].ebx = arg1;
+		lguest_data.hcalls[next_call].ecx = arg2;
+		lguest_data.hcalls[next_call].edx = arg3;
+		lguest_data.hcalls[next_call].esi = arg4;
 		/* Arguments must all be written before we mark it to go */
 		coherence();
 		lguest_data.hcall_status[next_call] = 0;
@@ -223,7 +225,7 @@ void lguest_write_idt_entry(void *dt,
 	/* Keep the local copy up to date. */
 	write_dt_entry(dt, entrynum, low, high);
 	/* Tell Host about this new entry. */
-	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, low, high);
+	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, low, high, 0);
 }
 
 /* Changing to a different IDT is very rare: we keep the IDT up-to-date every
@@ -243,12 +245,12 @@ void lidt(ushort *idtp)
 	  */
 	size = size > 64 ? 64 : size;
 	for (i = 0; i < size; i++){
-		iprint("Vec %d low %p, high %p\n", i, (void *)idt[i].a, (void *)idt[i].b);
-		hcall(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b);
+		//iprint("Vec %d low %p, high %p\n", i, (void *)idt[i].a, (void *)idt[i].b);
+		hcall(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b, 0);
 	}
 	/* now do the system call entry */
 	i = 0x40;
-	hcall(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b);
+	hcall(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b, 0);
 }
 
 /*
@@ -265,10 +267,19 @@ void lidt(ushort *idtp)
  * hypercall and use that repeatedly to load a new IDT.  I don't think it
  * really matters, but wouldn't it be nice if they were the same?
  */
+
+static void lguest_write_gdt_entry(void *dt,
+				   int entrynum, u32 low, u32 high)
+{
+	write_dt_entry(dt, entrynum, low, high);
+	hcall(LHCALL_LOAD_GDT_ENTRY, entrynum, low, high, 0);
+}
+
 void lgdt(ushort *gdtp)
 {
 	/* size is the first short */
 	u16 size = gdtp[0];
+	int i;
 	/* descriptor is in the long after the first short */
 	u32 address = *(u32 *)&gdtp[1];
 	struct desc_struct *gdt = (struct desc_struct *) address;
@@ -276,19 +287,11 @@ void lgdt(ushort *gdtp)
 	if (((size+1)/8) != GDT_ENTRIES)
 		panic("bad gdt in lguest_load_gdt: need %d entries, got %d\n",
 				GDT_ENTRIES, (size+1)/8);
-//	BUG_ON((desc->size+1)/8 != GDT_ENTRIES);
-	iprint("Load the gdt at %p\n", gdt);
-	hcall(LHCALL_LOAD_GDT, paddr(gdt), GDT_ENTRIES, 0);
-}
-
-/* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
- * then tell the Host to reload the entire thing.  This operation is so rare
- * that this naive implementation is reasonable. */
-static void lguest_write_gdt_entry(void *dt,
-				   int entrynum, u32 low, u32 high)
-{
-	write_dt_entry(dt, entrynum, low, high);
-	hcall(LHCALL_LOAD_GDT, paddr(dt), GDT_ENTRIES, 0);
+	//iprint("Load the gdt at %p\n", gdt);
+	for(i = 0; i < (size+1)/8; i++) {
+		//iprint("Load el %d a %#ulx %#ulx\n", i, gdt[i].a, gdt[i].b);
+		hcall(LHCALL_LOAD_GDT_ENTRY, i, gdt[i].a, gdt[i].b, 0);
+	}
 }
 
 /*:*/
@@ -392,7 +395,7 @@ static unsigned long current_cr0, current_cr3;
 void putcr0(unsigned long val)
 {
 	/* 8 == TS bit. */
-	lazy_hcall(LHCALL_TS, val & 8, 0, 0);
+	lazy_hcall(LHCALL_TS, val & 8, 0, 0, 0);
 	current_cr0 = val;
 }
 
@@ -406,7 +409,7 @@ unsigned long getcr0(void)
  * the vowels have been optimized out. */
 void lguest_clts(void)
 {
-	lazy_hcall(LHCALL_TS, 0, 0, 0);
+	lazy_hcall(LHCALL_TS, 0, 0, 0, 0);
 	current_cr0 &= ~8U;
 }
 
@@ -422,7 +425,7 @@ unsigned long getcr2(void)
  * cr0.  Keep a local copy, and tell the Host when it changes. */
 void putcr3(unsigned long cr3)
 {
-	/*lazy_*/hcall(LHCALL_NEW_PGTABLE, cr3, 0, 0);
+	/*lazy_*/hcall(LHCALL_NEW_PGTABLE, cr3, 0, 0, 0);
 	current_cr3 = cr3;
 }
 
@@ -497,7 +500,7 @@ void putcr4(unsigned long)
 void lguest_set_pte_at(ulong pdb, u32 addr, u32 *ptep, u32 pteval)
 {
 	*ptep = pteval;
-	lazy_hcall(LHCALL_SET_PTE, paddr((void *)pdb), addr, pteval&0xfff);
+	lazy_hcall(LHCALL_SET_PTE, paddr((void *)pdb), addr, pteval&0xfff, 0);
 }
 
 /* The Guest calls this to set a top-level entry.  Again, we set the entry then
@@ -506,8 +509,9 @@ void lguest_set_pte_at(ulong pdb, u32 addr, u32 *ptep, u32 pteval)
 void lguest_set_pmd(u32 *pmdp, u32 pmdval)
 {
 	*pmdp = pmdval;
+iprint("Set pmpd %p to %#ulx\n", pmdp, pmdval);
 	lazy_hcall(LHCALL_SET_PMD, PPN(paddr(pmdp)),
-		   (paddr(pmdp)&(BY2PG-1))/4, 0);
+		   (paddr(pmdp)&(BY2PG-1))/4, 0, 0);
 }
 
 /* There are a couple of legacy places where the kernel sets a PTE, but we
@@ -522,9 +526,10 @@ void lguest_set_pmd(u32 *pmdp, u32 pmdval)
 void lguest_set_pte(u32 *ptep, u32 pteval)
 {
 	*ptep = pteval;
+	//iprint("Set ptep %p to %#ulx\n", ptep, pteval);
 	/* Don't bother with hypercall before initial setup. */
 	if (current_cr3)
-		lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
+		lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0, 0);
 }
 
 /* Unfortunately for Lguest, the paravirt_ops for page tables were based on
@@ -540,7 +545,7 @@ void lguest_set_pte(u32 *ptep, u32 pteval)
 void lguest_flush_tlb_single(u32 addr)
 {
 	/* Simply set it to zero: if it was not, it will fault back in. */
-	lazy_hcall(LHCALL_SET_PTE, current_cr3, addr, 0);
+	lazy_hcall(LHCALL_SET_PTE, current_cr3, addr, 0, 0);
 }
 
 /* This is what happens after the Guest has removed a large number of entries.
@@ -548,7 +553,7 @@ void lguest_flush_tlb_single(u32 addr)
  * have changed, ie. virtual addresses below PAGE_OFFSET. */
 void lguest_flush_tlb_user(void)
 {
-	lazy_hcall(LHCALL_FLUSH_TLB, 0, 0, 0);
+	lazy_hcall(LHCALL_FLUSH_TLB, 0, 0, 0, 0);
 }
 
 /* This is called when the kernel page tables have changed.  That's not very
@@ -556,7 +561,7 @@ void lguest_flush_tlb_user(void)
  * slow), so it's worth separating this from the user flushing above. */
 void lguest_flush_tlb_kernel(void)
 {
-	lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
+	lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0, 0);
 }
 
 /*
@@ -643,7 +648,7 @@ uvlong lguest_get_ns(void)
 
 void
 lguest_interval_timer(u32 nanoseconds){
-	lazy_hcall(LHCALL_SET_CLOCKEVENT, nanoseconds, 0, 0);
+	lazy_hcall(LHCALL_SET_CLOCKEVENT, nanoseconds, 0, 0, 0);
 }
 
 /* The Guest needs to tell the host what stack it expects traps to use.  For
@@ -657,8 +662,8 @@ lguest_interval_timer(u32 nanoseconds){
 void lguest_load_esp0(u32 stack)
 {
 //iprint("load stack %p\n", (void *)stack);
-	lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
-	lazy_hcall(LHCALL_SET_STACK, (KDSEG<<3)|1, stack, KSTACK/BY2PG);
+	lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0, 0);
+	lazy_hcall(LHCALL_SET_STACK, (KDSEG<<3)|1, stack, KSTACK/BY2PG, 0);
 
 }
 
@@ -702,7 +707,7 @@ unsigned long lguest_apic_read(unsigned long reg)
 void halt(void)
 {
 	
-	hcall(LHCALL_HALT, 0, 0, 0);
+	hcall(LHCALL_HALT, 0, 0, 0, 0);
 }
 
 /* Perhaps CRASH isn't the best name for this hypercall, but we use it to get a
@@ -713,7 +718,7 @@ void halt(void)
  * rather than virtual addresses, so we use paddr() here. */
 void lguest_power_off(void)
 {
-	hcall(LHCALL_CRASH, paddr("Power down"), 0, 0);
+	hcall(LHCALL_SHUTDOWN, paddr("Power down"), 0, 0, 0);
 }
 
 /*
@@ -723,7 +728,7 @@ void lguest_power_off(void)
  */
 int lguest_panic( void *p)
 {
-	hcall(LHCALL_CRASH, paddr(p), 0, 0);
+	hcall(LHCALL_SHUTDOWN, paddr(p), 0, 0, 0);
 	return -1;
 }
 
@@ -758,7 +763,7 @@ void lguest_init(void */* boot info -- use this someday */)
 	 *
 	 * The Host expects our first hypercall to tell it where our "struct
 	 * lguest_data" is, so we do that first. */
-	hcall(LHCALL_LGUEST_INIT, paddr(&lguest_data), 0, 0);
+	hcall(LHCALL_LGUEST_INIT, paddr(&lguest_data), 0, 0, 0);
 
 	/* The native boot code sets up initial page tables immediately after
 	 * the kernel itself, and sets init_pg_tables_end so they're not
