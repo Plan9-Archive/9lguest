@@ -1,0 +1,9 @@
+#!/boot/rc -m /boot/rcmain
+/boot/echo "diskpart here ready to serve"
+/boot/fdisk -p '#S/sd00/data' 
+/boot/fdisk -p '#S/sd00/data' > '#S/sd00/ctl' 
+/boot/prep -p '#S/sd00/plan9'
+/boot/prep -p '#S/sd00/plan9' >  '#S/sd00/ctl' 
+/boot/ls -l '#S/sd00'
+/boot/echo "diskpart ends"
+

@@ -1,0 +1,42 @@
+#!/boot/rc -m /boot/rcmain
+/boot/bind /boot /bin
+cputype=386
+objtype=$cputype
+service=cpu
+user=glenda
+rootdir=/root
+rootspec=''
+echo -n $user > /dev/hostowner
+auth=() fs=()
+
+bind '#c' /dev
+bind '#d' /fd
+bind -c '#e' /env
+bind '#p' /proc
+bind  -c '#s' /srv
+bind -a '#S' /dev
+bind -a '#I' /net
+
+#echo -n $user > /dev/hostowner
+
+#i=`{sed '' /net/ipifc/clone}
+#echo bind loopback /dev/null > /net/ipifc/$i/ctl
+#echo add 127.0.0.1 255.0.0.0 127.0.0.0 > /net/ipifc/$i/ctl
+
+#fdisk -p /dev/sd00/data > /dev/sd00/ctl
+#prep -p /dev/sd00/plan9 > /dev/sd00/ctl
+#ls /dev/sd00
+
+echo -n tcp!127.1!17034 > /env/venti
+
+/boot/echo "HI THERE!"
+#venti -c /dev/sd00/arenas -a tcp!127.1!17034
+#fossil -c 'srv -p fscons' -c 'srv -A boot'  -f /dev/sd00/fossil 
+#mount -c /srv/boot /root
+#bind -bc /root /
+#ip/ipconfig ether /net/ether0 192.168.19.2 255.255.255.0
+#factotum
+#/386/init
+while(/boot/echo Hello Squidboy)
+        . -i '#d/0'
+

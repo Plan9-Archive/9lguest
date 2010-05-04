@@ -1,0 +1,3 @@
+#!/bin/rc
+bind -a lguest /sys/src/9
+bind -bc lguest/boot /sys/src/9/boot

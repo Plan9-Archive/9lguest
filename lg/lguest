@@ -1,0 +1,82 @@
+dev
+	root
+	cons
+
+	arch
+	env
+	pipe
+	proc
+	mnt
+	srv
+	dup
+	ssl
+	tls
+	cap
+	kprof
+
+	ether		netif
+	ip		arp chandial ip ipv6 ipaux iproute netlog nullmedium pktmedium ptclbsum386 inferno
+	uart
+	rtc
+	sd
+
+
+link
+	ethermedium
+	netdevmedium
+	loopbackmedium
+	etherlg
+
+misc
+	uartlg
+	sdlg
+
+
+ip
+	il
+	tcp
+	udp
+	ipifc
+	icmp
+	icmp6
+	gre
+
+port
+	int cpuserver = 0;
+
+boot boot #S/sd00/data
+	tcp
+	il
+	local
+
+bootdir
+#	bootlguest.out boot
+	/386/bin/bind
+	/386/bin/echo
+	/386/bin/date
+	/386/bin/ls
+	/386/bin/dd
+	/386/bin/mount
+	/386/bin/ps
+	/386/bin/cat
+	/386/bin/rc
+	/386/bin/sleep
+	/386/bin/sed
+	/386/bin/test
+	/386/bin/auth/factotum
+	/386/bin/ip/ipconfig
+	/386/bin/ip/ping
+	/386/bin/import
+	/386/bin/ip/traceroute
+	/386/bin/aux/listen1
+	/386/bin/disk/prep
+	/386/bin/disk/fdisk
+	/386/bin/fossil/fossil
+	/386/bin/venti/venti
+	/rc/lib/rcmain
+	/386/bin/9660srv kfs
+	/386/bin/ns
+	/386/bin/ramfs
+	/386/bin/netstat
+	diskpart
+	lgcpu.rc boot
