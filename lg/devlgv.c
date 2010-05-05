@@ -94,6 +94,7 @@ struct lguest_device lgv[Qmax];
 
 static int ndev = FirstDev;
 int console = -1;
+int watchdevice = -1;
 
 /* just like iprint but it will ALWAYS go straight to a notify -- not whatever
  * we happen to think the console is.

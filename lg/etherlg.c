@@ -42,9 +42,15 @@ enum {
 	
 };
 
-struct netheader {
-	unsigned char h[10];
+/* on xmit, we malloc this and use it for two things: 
+ * the hdr data for lguest
+ * the "tag" that we dq from the virtio ring and know how to deallocate. 
+ */
+struct xmit {
+	Block *block;
+	unsigned char hdr[10];
 };
+
 
 typedef struct Ctlr Ctlr;
 typedef struct Ctlr {
@@ -68,6 +74,7 @@ static Ctlr* ctlrhead;
 static Ctlr* ctlrtail;
 static void
 lginterrupt(Ureg*, void* arg);
+int inotify(char *fmt, ...);
 extern struct lguest_device_desc *lgd;
 
 static void
@@ -189,6 +196,7 @@ fillslot(Ether* edev)
 		len[0] = 10;
 		v[1] = bp->wp;
 		len[1] = ETHERMAXTU;
+		inotify("fillslot: add %p\n", bp);
 		lgvaddbuf(ctlr->devno, 0, v, len, 0, 2, bp);
 	}
 }
@@ -226,25 +234,29 @@ lgtxstart(Ether* edev)
 {
 	int lgvaddbuf(int dev, int ring, void *v[], int len[], int out, int in, void *tag);
 	/* gcc and kenc disagree about structs. Screw it. */
-	unsigned char nh[10];
+	struct xmit *xm;
+	unsigned char *nh;
 	void *v[2];
 	int len[2];
 	int size;
 	Block *bp;
 	Ctlr *ctlr;
-//iprint("lgtxstart\n");
+	inotify("lgtxstart\n");
 	ctlr = edev->ctlr;
 	while(bp = qget(edev->oq)){
-		memset(nh, 0, sizeof(nh));
+		xm = malloc(sizeof(*xm));
+		nh = xm->hdr;
+		xm->block = bp;
+		memset(nh, 0, 10);
 		nh[0] = VIRTIO_NET_HDR_F_NEEDS_CSUM;
 		nh[1] = VIRTIO_NET_HDR_GSO_NONE;
 		v[0] = nh;
-		len[0] = 10;
+		len[0] = sizeof(xm->hdr);
 		size = BLEN(bp);
 		v[1] = bp->rp;
 		len[1] = size;
 		/* non blocking IO. Basically, we'll get interrupted and do a getbuf, which is the bp, and free the bp */
-		lgvaddbuf(ctlr->devno, 1, v, len, 2, 0, bp);
+		lgvaddbuf(ctlr->devno, 1, v, len, 2, 0, xm);
 	}
 }
 
@@ -267,12 +279,12 @@ static void
 lgtransmit(Ether* edev)
 {
 	Ctlr *ctlr;
-//print("lgtransmit...\n");
+	inotify("lgtransmit...\n");
 	ctlr = edev->ctlr;
 	ilock(&ctlr->tlock);
 	lgtxstart(edev);
 	iunlock(&ctlr->tlock);
-//iprint("lgtransmit done\n");
+	inotify("lgtransmit done\n");
 }
 
 static void
@@ -283,19 +295,23 @@ lginterrupt(Ureg*, void* arg)
 	Ctlr *ctlr;
 	Block *bp;
 	int len;
-//	iprint("L");
+	struct xmit *xm;
+	inotify("L");
 	ctlr = edev->ctlr;
 	/* suck up stuff while there's stuff to suck. */
-	while (bp = lgvgetbuf(ctlr->devno, 1, &len)) {
-//		iprint("IF%d %p ", len, bp);
-		free(bp);
+	while (xm = lgvgetbuf(ctlr->devno, 1, &len)) {
+		inotify("IF%d %p %p", len, xm, xm->block);
+		freeb(xm->block);
+		free(xm);
 	}
-//	iprint("l");
+	inotify("l");
 
 	while (bp = lgvgetbuf(ctlr->devno, 0, &len)) {
 		bp->wp += len;
-//		iprint("IR%d %p ", len, bp);
-//		dumphex("RP", bp->rp, BLEN(bp));
+		inotify("IR%d %p ", len, bp);
+		if (BLEN(bp) > 4096)
+			inotify("BLEN(%p) is %d > 4K! len says %d\n", bp, BLEN(bp), len);
+		//dumphex("RP", bp->rp, BLEN(bp));
 		etheriq(edev, bp, 1);
 		fillslot(edev);
 	}

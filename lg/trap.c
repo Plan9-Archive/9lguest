@@ -493,7 +493,7 @@ dumpregs2(Ureg* ureg)
 	print("  CS %4.4luX  DS %4.4luX  ES %4.4luX  FS %4.4luX  GS %4.4luX\n",
 		ureg->cs & 0xFFFF, ureg->ds & 0xFFFF, ureg->es & 0xFFFF,
 		ureg->fs & 0xFFFF, ureg->gs & 0xFFFF);
-panic("aw shit");
+panic("What else can I say?");
 }
 
 void
@@ -520,7 +520,7 @@ dumpregs(Ureg* ureg)
 			print("\n  MCA %8.8llux MCT %8.8llux", mca, mct);
 		}
 	}
-	print("\n  ur %lux up %lux\n", ureg, up);
+	print("\n  ur %p up %p\n", ureg, up);
 }
 
 
